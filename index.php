@@ -132,3 +132,107 @@ if (isset($uriParts[0]) && $uriParts[0] === 'categories') {
         }
     }
 }
+// -------------------------------------------------------
+elseif (isset($uriParts[0]) && $uriParts[0] === 'products') {
+    // /products
+    if (count($uriParts) === 1) {
+        // GET /products => prikaz svih proizvoda
+        if ($method === 'GET') {
+            global $pdo;
+            $stmt = $pdo->query("
+                SELECT p.*,
+                       c.name AS category_name,
+                       d.name AS department_name,
+                       m.name AS manufacturer_name
+                FROM products p
+                JOIN categories c ON p.category_id = c.id
+                JOIN departments d ON p.department_id = d.id
+                JOIN manufacturers m ON p.manufacturer_id = m.id
+            ");
+            $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            sendResponse($products);
+        } else {
+            sendResponse(["error" => "Nepodržana metoda za /products"], 405);
+        }
+    } elseif (count($uriParts) === 2) {
+        // /products/{id} => PUT, DELETE
+        $productId = (int)$uriParts[1];
+
+        if ($method === 'PUT') {
+            // izmena proizvoda
+            $input = json_decode(file_get_contents('php://input'), true);
+
+            // gradjenje SQL-a dinamicki da azuriramo samo polja koja su poslata
+            $fields = [];
+            $params = [];
+
+            if (isset($input['product_code'])) {
+                $fields[] = "product_code = ?";
+                $params[] = $input['product_code'];
+            }
+            if (isset($input['category_id'])) {
+                $fields[] = "category_id = ?";
+                $params[] = $input['category_id'];
+            }
+            if (isset($input['department_id'])) {
+                $fields[] = "department_id = ?";
+                $params[] = $input['department_id'];
+            }
+            if (isset($input['manufacturer_id'])) {
+                $fields[] = "manufacturer_id = ?";
+                $params[] = $input['manufacturer_id'];
+            }
+            if (isset($input['upc'])) {
+                $fields[] = "upc = ?";
+                $params[] = $input['upc'];
+            }
+            if (isset($input['sku'])) {
+                $fields[] = "sku = ?";
+                $params[] = $input['sku'];
+            }
+            if (isset($input['regular_price'])) {
+                $fields[] = "regular_price = ?";
+                $params[] = $input['regular_price'];
+            }
+            if (isset($input['sale_price'])) {
+                $fields[] = "sale_price = ?";
+                $params[] = $input['sale_price'];
+            }
+            if (isset($input['description'])) {
+                $fields[] = "description = ?";
+                $params[] = $input['description'];
+            }
+
+            if (empty($fields)) {
+                sendResponse(["error" => "Nema podataka za ažuriranje"], 400);
+            }
+
+            // dodajemo productId kao poslednji parametar
+            $params[] = $productId;
+
+            // gradjenje konačnog SQL-a
+            $sql = "UPDATE products SET " . implode(', ', $fields) . " WHERE id = ?";
+            global $pdo;
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
+
+            sendResponse(["message" => "Proizvod ažuriran"]);
+        }
+        elseif ($method === 'DELETE') {
+            // brisanje proizvoda
+            global $pdo;
+            $stmt = $pdo->prepare("DELETE FROM products WHERE id = ?");
+            $stmt->execute([$productId]);
+            sendResponse(["message" => "Proizvod obrisan"]);
+        }
+        else {
+            sendResponse(["error" => "Nepodržana metoda"], 405);
+        }
+    }
+}
+// -------------------------------------------------------
+else {
+    // nepostojeca ruta
+    sendResponse(["error" => "Nepostojeća ruta"], 404);
+}
+
