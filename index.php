@@ -107,5 +107,28 @@ if (isset($uriParts[0]) && $uriParts[0] === 'categories') {
                 sendResponse(["error" => "Nepodržana metoda"], 405);
             }
         }
+        else {
+            // /categories/{id} => PUT (izmena naziva), DELETE (brisanje)
+            if ($method === 'PUT') {
+                // azuriranje update kategorije
+                $input = json_decode(file_get_contents('php://input'), true);
+                if (!isset($input['name']) || empty($input['name'])) {
+                    sendResponse(["error" => "Nedostaje 'name' za kategoriju"], 400);
+                }
+
+                global $pdo;
+                $stmt = $pdo->prepare("UPDATE categories SET name = ? WHERE id = ?");
+                $stmt->execute([$input['name'], $categoryId]);
+                sendResponse(["message" => "Kategorija ažurirana"]);
+            } elseif ($method === 'DELETE') {
+                // brisanje kategorije
+                global $pdo;
+                $stmt = $pdo->prepare("DELETE FROM categories WHERE id = ?");
+                $stmt->execute([$categoryId]);
+                sendResponse(["message" => "Kategorija obrisana"]);
+            } else {
+                sendResponse(["error" => "Nepodržana metoda"], 405);
+            }
+        }
     }
 }
