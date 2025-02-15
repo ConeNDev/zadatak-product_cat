@@ -15,3 +15,18 @@ function sendResponse($data, $status = 200) {
     echo json_encode($data);
     exit;
 }
+// rutiranje na osnovu prvog segmenta
+if (isset($uriParts[0]) && $uriParts[0] === 'categories') {
+    // /categories
+    if (count($uriParts) === 1) {
+        // GET /categories 
+        if ($method === 'GET') {
+            global $pdo;
+            $stmt = $pdo->query("SELECT * FROM categories");
+            $categories = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            sendResponse($categories);
+        } else {
+            sendResponse(["error" => "Nepodržana metoda za /categories"], 405);
+        }
+    } 
+}
